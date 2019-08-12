@@ -11,9 +11,6 @@ import (
 	"time"
 )
 
-// DefaultSessionCookieName is the default name of session cookie if not given.
-const DefaultSessionCookieName = "SESSION-IDENT"
-
 // DefaultCSRFTokenCookieName is the default name of CSRF cookie if not given.
 const DefaultCSRFTokenCookieName = "XSRF-TOKEN"
 
