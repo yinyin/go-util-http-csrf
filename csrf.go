@@ -28,16 +28,16 @@ func prependTimestampToBytes(d []byte) (r []byte) {
 	return
 }
 
-func extractTimestampFromBytes(d []byte) (t time.Time, b []byte) {
-	if len(d) < 8 {
+func timestampFromPrependBytes(b []byte) (t time.Time, d []byte) {
+	if len(b) < 8 {
 		return
 	}
-	epochSec := int64(binary.LittleEndian.Uint64(d))
+	epochSec := int64(binary.LittleEndian.Uint64(b))
 	if epochSec < 0 {
 		return
 	}
 	t = time.Unix(epochSec, 0)
-	b = d[8:]
+	d = b[8:]
 	return
 }
 
