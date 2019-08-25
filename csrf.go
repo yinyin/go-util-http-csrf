@@ -1,13 +1,7 @@
 package httpcsrf
 
 import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
 	"encoding/binary"
-	"hash/adler32"
-	"io"
 	"net/http"
 	"time"
 )
@@ -47,8 +41,7 @@ func timestampFromPrependBytes(b []byte) (t time.Time, d []byte) {
 
 // CSRFHelper provide functions to verify CSRF token.
 type CSRFHelper struct {
-	KeyBinary []byte
-	HashMask  uint32
+	CipherHelper
 
 	CookiePath   string
 	CookieDomain string
@@ -84,65 +77,6 @@ func (h *CSRFHelper) Initialize() (err error) {
 	return
 }
 
-func (h *CSRFHelper) prepareAEAD() (aead cipher.AEAD, err error) {
-	block, err := aes.NewCipher(h.KeyBinary)
-	if nil != err {
-		return
-	}
-	return cipher.NewGCM(block)
-}
-
-func (h *CSRFHelper) encryptBytes(data []byte) (result string, err error) {
-	if len(data) == 0 {
-		return
-	}
-	aead, err := h.prepareAEAD()
-	if nil != err {
-		return
-	}
-	nonce := make([]byte, aead.NonceSize())
-	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return
-	}
-	cipherText := aead.Seal(nil, nonce, data, nil)
-	cipherText = append(cipherText, nonce...)
-	checksum32 := adler32.Checksum(cipherText)
-	checksum32 = checksum32 ^ h.HashMask
-	chkbuf := make([]byte, 4)
-	binary.LittleEndian.PutUint32(chkbuf, checksum32)
-	cipherText = append(cipherText, chkbuf...)
-	result = base64.RawURLEncoding.EncodeToString(cipherText)
-	return
-}
-
-func (h *CSRFHelper) decryptString(encryptedString string) (result []byte, err error) {
-	cipherText, err := base64.RawURLEncoding.DecodeString(encryptedString)
-	if nil != err {
-		return
-	}
-	if len(cipherText) < 4 {
-		return nil, ErrIncompleteEncryptedContent
-	}
-	checksum32 := binary.LittleEndian.Uint32(cipherText[len(cipherText)-4:])
-	checksum32 = checksum32 ^ h.HashMask
-	cipherText = cipherText[:len(cipherText)-4]
-	if adler32.Checksum(cipherText) != checksum32 {
-		return nil, ErrCheckSumNotMatch
-	}
-	aead, err := h.prepareAEAD()
-	if nil != err {
-		return
-	}
-	nonceSize := aead.NonceSize()
-	nonceBound := len(cipherText) - nonceSize
-	if nonceBound < 0 {
-		return nil, ErrIncompleteEncryptedContent
-	}
-	nonce := cipherText[nonceBound:]
-	cipherText = cipherText[:nonceBound]
-	return aead.Open(nil, nonce, cipherText, nil)
-}
-
 func (h *CSRFHelper) validateCSRFTokenAge(tokenBytes []byte) (sessionIdent []byte, shouldRenew bool, err error) {
 	t, sessionIdent := timestampFromPrependBytes(tokenBytes)
 	curentTime := time.Now()
@@ -157,7 +91,7 @@ func (h *CSRFHelper) validateCSRFTokenAge(tokenBytes []byte) (sessionIdent []byt
 }
 
 func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, shouldRenew bool, err error) {
-	tokenBytes, err := h.decryptString(tokenString)
+	tokenBytes, err := h.DecryptString(tokenString)
 	if nil != err {
 		return
 	}
@@ -165,7 +99,7 @@ func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, shou
 }
 
 func (h *CSRFHelper) makeEncryptedCookie(cookieName string, data []byte, maxAgeSeconds int) (c *http.Cookie, err error) {
-	cookieValue, err := h.encryptBytes(data)
+	cookieValue, err := h.EncryptBytes(data)
 	if nil != err {
 		return
 	}
