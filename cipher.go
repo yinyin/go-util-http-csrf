@@ -24,8 +24,9 @@ func (h *CipherHelper) prepareAEAD() (aead cipher.AEAD, err error) {
 	return cipher.NewGCM(block)
 }
 
-// EncryptBytes encrypt given data bytes to string.
-func (h *CipherHelper) EncryptBytes(data []byte) (result string, err error) {
+// EncryptBytesToString encrypt given data bytes and encode encrypted binary to
+// string with given base64Encoding.
+func (h *CipherHelper) EncryptBytesToString(data []byte, base64Encoding *base64.Encoding) (result string, err error) {
 	if len(data) == 0 {
 		return
 	}
@@ -44,13 +45,20 @@ func (h *CipherHelper) EncryptBytes(data []byte) (result string, err error) {
 	chkbuf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(chkbuf, checksum32)
 	cipherText = append(cipherText, chkbuf...)
-	result = base64.RawURLEncoding.EncodeToString(cipherText)
+	result = base64Encoding.EncodeToString(cipherText)
 	return
 }
 
-// DecryptString decrypt given encryptedString to bytes.
-func (h *CipherHelper) DecryptString(encryptedString string) (result []byte, err error) {
-	cipherText, err := base64.RawURLEncoding.DecodeString(encryptedString)
+// EncryptBytes encrypt given data bytes and enode encrypted binary to string
+// with base64.RawURLEncoding.
+func (h *CipherHelper) EncryptBytes(data []byte) (result string, err error) {
+	return h.EncryptBytesToString(data, base64.RawURLEncoding)
+}
+
+// DecryptStringToBytes decode given encryptedString with given base64Encoding
+// and decrypt result binary to bytes.
+func (h *CipherHelper) DecryptStringToBytes(encryptedString string, base64Encoding *base64.Encoding) (result []byte, err error) {
+	cipherText, err := base64Encoding.DecodeString(encryptedString)
 	if nil != err {
 		return
 	}
@@ -75,4 +83,10 @@ func (h *CipherHelper) DecryptString(encryptedString string) (result []byte, err
 	nonce := cipherText[nonceBound:]
 	cipherText = cipherText[:nonceBound]
 	return aead.Open(nil, nonce, cipherText, nil)
+}
+
+// DecryptString decode given encryptedString with base64.RawURLEncoding and
+// decrypt result binary to bytes.
+func (h *CipherHelper) DecryptString(encryptedString string) (result []byte, err error) {
+	return h.DecryptStringToBytes(encryptedString, base64.RawURLEncoding)
 }
