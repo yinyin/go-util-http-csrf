@@ -91,7 +91,7 @@ func (h *CSRFHelper) validateCSRFTokenAge(tokenBytes []byte) (sessionIdent []byt
 }
 
 func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, shouldRenew bool, err error) {
-	tokenBytes, err := h.DecryptString(tokenString)
+	tokenBytes, err := h.DecryptBase64RawURLEncodedString(tokenString)
 	if nil != err {
 		return
 	}
@@ -99,7 +99,7 @@ func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, shou
 }
 
 func (h *CSRFHelper) makeEncryptedCookie(cookieName string, data []byte, maxAgeSeconds int) (c *http.Cookie, err error) {
-	cookieValue, err := h.EncryptBytes(data)
+	cookieValue, err := h.EncryptBytesToBase64RawURLEncodedString(data)
 	if nil != err {
 		return
 	}
