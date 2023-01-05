@@ -77,20 +77,21 @@ func (h *CSRFHelper) Initialize() (err error) {
 	return
 }
 
-func (h *CSRFHelper) validateCSRFTokenAge(tokenBytes []byte) (sessionIdent []byte, shouldRenew bool, err error) {
+func (h *CSRFHelper) validateCSRFTokenAge(tokenBytes []byte) (sessionIdent []byte, validWithin time.Duration, shouldRenew bool, err error) {
 	t, sessionIdent := timestampFromPrependBytes(tokenBytes)
 	curentTime := time.Now()
-	delta := curentTime.Sub(t)
-	if delta > h.MaxCSRFTokenAge {
-		return nil, false, ErrTokenExpired
+	validWithin = curentTime.Sub(t)
+	if validWithin > h.MaxCSRFTokenAge {
+		sessionIdent = nil
+		validWithin = 0
+		err = ErrTokenExpired
+		return
 	}
-	if delta > h.RenewCSRFTokenAge {
-		shouldRenew = true
-	}
+	shouldRenew = (validWithin > h.RenewCSRFTokenAge)
 	return
 }
 
-func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, shouldRenew bool, err error) {
+func (h *CSRFHelper) decryptToken(tokenString string) (sessionIdent []byte, validWithin time.Duration, shouldRenew bool, err error) {
 	tokenBytes, err := h.DecryptBase64RawURLEncodedString(tokenString)
 	if nil != err {
 		return
@@ -136,11 +137,11 @@ func (h *CSRFHelper) ClearCSRFTokenCookie(w http.ResponseWriter) (err error) {
 }
 
 // SessionIdentFromCSRFTokenCookie fetch sessionIdent from CSRF token cookie.
-func (h *CSRFHelper) SessionIdentFromCSRFTokenCookie(r *http.Request) (sessionIdent []byte, shouldRenew bool, err error) {
+func (h *CSRFHelper) SessionIdentFromCSRFTokenCookie(r *http.Request) (sessionIdent []byte, validWithin time.Duration, shouldRenew bool, err error) {
 	cookie, err := r.Cookie(h.CSRFTokenCookieName)
 	if nil != err {
 		if err == http.ErrNoCookie {
-			return nil, false, nil
+			err = nil
 		}
 		return
 	}
@@ -148,10 +149,10 @@ func (h *CSRFHelper) SessionIdentFromCSRFTokenCookie(r *http.Request) (sessionId
 }
 
 // SessionIdentFromCSRFTokenHeader fetch sessionIdent from CSRF token header.
-func (h *CSRFHelper) SessionIdentFromCSRFTokenHeader(r *http.Request) (sessionIdent []byte, shouldRenew bool, err error) {
+func (h *CSRFHelper) SessionIdentFromCSRFTokenHeader(r *http.Request) (sessionIdent []byte, validWithin time.Duration, shouldRenew bool, err error) {
 	tokenHeader := r.Header.Get(h.CSRFTokenHeaderName)
 	if tokenHeader == "" {
-		return nil, false, nil
+		return
 	}
 	return h.decryptToken(tokenHeader)
 }

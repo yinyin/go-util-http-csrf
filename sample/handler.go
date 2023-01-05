@@ -38,7 +38,7 @@ func (h *sampleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	case "/endpoint/validate-token":
-		sessionIdent, shouldRenew, err := h.csrfHelper.SessionIdentFromCSRFTokenHeader(req)
+		sessionIdent, validWithin, shouldRenew, err := h.csrfHelper.SessionIdentFromCSRFTokenHeader(req)
 		if nil != err {
 			if err == httpcsrf.ErrTokenExpired {
 				http.Error(w, "ErrTokenExpired", http.StatusForbidden)
@@ -53,7 +53,8 @@ func (h *sampleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 		}
-		log.Printf("DEBUG: (validate-token) sessionIdent: %v; shouldRenew: %v", sessionIdent, shouldRenew)
+		log.Printf("DEBUG: (validate-token) sessionIdent: %v; validWithin: %v; shouldRenew: %v",
+			sessionIdent, validWithin, shouldRenew)
 		var result struct {
 			SessionIdent string `json:"session"`
 			HadRenew     bool   `json:"renew"`
@@ -65,7 +66,7 @@ func (h *sampleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		}
 		return
 	case "/endpoint/session-ident":
-		sessionIdent, shouldRenew, err := h.csrfHelper.SessionIdentFromCSRFTokenCookie(req)
+		sessionIdent, validWithin, shouldRenew, err := h.csrfHelper.SessionIdentFromCSRFTokenCookie(req)
 		if nil != err {
 			if err == httpcsrf.ErrTokenExpired {
 				http.Error(w, "ErrTokenExpired", http.StatusForbidden)
@@ -74,7 +75,8 @@ func (h *sampleHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 			}
 			return
 		}
-		log.Printf("DEBUG: (session-ident) sessionIdent: %v; shouldRenew: %v", sessionIdent, shouldRenew)
+		log.Printf("DEBUG: (session-ident) sessionIdent: %v; validWithin: %v; shouldRenew: %v",
+			sessionIdent, validWithin, shouldRenew)
 		var result struct {
 			SessionIdent string `json:"session"`
 			ShouldRenew  bool   `json:"should_renew"`
